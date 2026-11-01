@@ -156,6 +156,13 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
   .grp table, .grp tbody{display:block} .grp tr{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 12px;border-bottom:1px solid var(--line)}
   .grp td{border:0;padding:0;font-size:.82rem} .grp thead{display:none}
 }
+.lock{position:fixed;inset:0;background:var(--bg);z-index:50;display:grid;place-items:center;padding:16px}
+.lock form{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:28px 24px;width:min(380px,100%);display:flex;flex-direction:column;gap:14px;text-align:center;box-shadow:0 10px 40px rgba(15,34,56,.08)}
+.lock .mark{margin:0 auto}
+.lock h2{margin:0;font-size:1.1rem}
+.lock p{margin:0;color:var(--muted);font-size:.85rem}
+.lock input{font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);text-align:center;direction:ltr}
+.lock .err{color:var(--bad);font-size:.85rem}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -185,6 +192,13 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v18h18M7 15v2M12 10v7M17 6v11"/></symbol>
 </svg>
 
+<div class="lock" id="lock"><form id="lockf">
+  <div class="mark"><svg class="i"><use href="#i-lock"/></svg></div>
+  <h2>متابعة الحالات المتأخرة</h2><p>اكتب كلمة المرور للدخول</p>
+  <input id="pw" type="password" autocomplete="current-password" required autofocus aria-label="كلمة المرور">
+  <span class="err" id="pwerr" hidden>كلمة المرور غير صحيحة</span>
+  <button class="btn primary" style="justify-content:center">دخول</button>
+</form></div>
 <header>
   <div class="wrap">
     <div class="mark"><svg class="i"><use href="#i-bed"/></svg></div>
@@ -192,6 +206,7 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
     <label class="btn primary" for="file"><svg class="i"><use href="#i-up"/></svg>فتح ملف التنويم</label>
     <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
     <button class="btn" id="export" hidden><svg class="i"><use href="#i-down"/></svg>تصدير Excel كامل</button>
+    <button class="btn" id="lockbtn" title="قفل"><svg class="i"><use href="#i-lock"/></svg>قفل</button>
     <button class="btn" id="report" hidden><svg class="i"><use href="#i-chart"/></svg>تقرير للإدارة (أرقام فقط)</button>
   </div>
 </header>
@@ -261,7 +276,7 @@ const norm = s => String(s ?? "").trim().toLowerCase().replace(/[\s_\-]+/g, "_")
 const store = { get(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } }, set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
 const today = () => new Date().toISOString().slice(0, 10);
 
-let patients = [], entries = store.get(LS, {}), current = null, prevList = store.get(LSL, []), dept = store.get("cm-dept", ""), view = "list";
+let patients = [], entries = {}, current = null, prevList = [], dept = store.get("cm-dept", ""), view = "list";
 const DEPT_RULES = [[/neurosurg|مخ/i, "brain"], [/pediatric surg|جراحة الأطفال/i, "baby"], [/one.?day|day ?care|اليوم الواحد/i, "sun"], [/surg|جراح/i, "scalpel"],
   [/internal|medicine|باطن/i, "steth"], [/cardi|قلب/i, "heart"], [/neuro|أعصاب/i, "brain"], [/neonat|nicu|nursery|pediat|paed|أطفال|حديثي/i, "baby"],
   [/ob|gyn|obstet|نساء|ولادة/i, "female"], [/ortho|عظام/i, "bone"], [/ent|otol|أنف/i, "ear"], [/ophth|eye|عيون/i, "eye"], [/uro|nephro|مسالك|كلى/i, "drop"], [/icu|critical|عناية/i, "ecg"]];
@@ -294,7 +309,7 @@ function load(list){
   list.forEach(p => { if (entries[p.mrn]) entries[p.mrn].snap = snap(p); });
   save();
   patients = [...list, ...gone];
-  store.set(LSL, list.map(({mrn, name, ward, bed, doctor, clinic, days}) => ({mrn, name, ward, bed, doctor, clinic, days})));
+  encSet(LSL, list.map(({mrn, name, ward, bed, doctor, clinic, days}) => ({mrn, name, ward, bed, doctor, clinic, days})));
   prevList = list;
   // entries saved in a previously exported file come back with it
   $("drop").hidden = true; $("app").hidden = false; $("export").hidden = false; $("report").hidden = false;
@@ -316,7 +331,7 @@ async function readFiles(files){
         try { Object.assign(e, JSON.parse(r["__data"] || "{}")); } catch {}
       });
     }
-    store.set(LS, entries);
+    save();
     const list = [...byMrn.values()];
     load(list);
     toast(`تم فتح ${list.length} مريض${files.length > 1 ? ` من ${files.length} ملفات` : ""}${dup ? ` (تجاهلت ${dup} تكرار)` : ""}`);
@@ -324,7 +339,7 @@ async function readFiles(files){
 }
 
 const entry = mrn => entries[mrn] || {};
-function save(){ store.set(LS, entries); }
+function save(){ encSet(LS, entries); }
 
 function fillFilters(){
   const v = [...new Set(patients.map(p => p.ward).filter(Boolean))].sort();
@@ -563,7 +578,38 @@ document.addEventListener("click", ev => { const tr = ev.target.closest("#v-dail
 
 function toast(m){ const t = document.createElement("div"); t.className = "toast"; t.textContent = m; document.body.append(t); setTimeout(() => t.remove(), 3200); }
 
-if (prevList.length) load(prevList);
+// ---------- password: the hash gates entry, and the password itself is the key that encrypts saved data ----------
+const PASS_SHA256 = "11d7f1d044d1f23c84a1a2729436c6772862510f2b6f6810ccd127d8e1cc7a15";
+let KEY = null;
+const b64 = u8 => btoa(String.fromCharCode(...u8)), unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function sha256(t){ return [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t)))].map(b => b.toString(16).padStart(2, "0")).join(""); }
+async function deriveKey(pw){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name: "PBKDF2", salt: new TextEncoder().encode("case-manager-v1"), iterations: 150000, hash: "SHA-256"}, base, {name: "AES-GCM", length: 256}, false, ["encrypt", "decrypt"]);
+}
+async function encSet(k, obj){
+  if (!KEY) return;
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = new Uint8Array(await crypto.subtle.encrypt({name: "AES-GCM", iv}, KEY, new TextEncoder().encode(JSON.stringify(obj))));
+  try { localStorage.setItem(k, JSON.stringify({iv: b64(iv), ct: b64(ct)})); } catch {}
+}
+async function encGet(k, d){
+  let raw; try { raw = JSON.parse(localStorage.getItem(k)); } catch { return d; }
+  if (raw === null || raw === undefined) return d;
+  if (!raw.iv) return raw;  // saved before encryption existed: read it once, it is re-saved encrypted
+  try { return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({name: "AES-GCM", iv: unb64(raw.iv)}, KEY, unb64(raw.ct)))); } catch { return d; }
+}
+$("lockf").onsubmit = async ev => {
+  ev.preventDefault();
+  const pw = $("pw").value;
+  if (await sha256(pw) !== PASS_SHA256) { $("pwerr").hidden = false; $("pw").select(); return; }
+  KEY = await deriveKey(pw); $("pw").value = "";
+  entries = await encGet(LS, {}); prevList = await encGet(LSL, []);
+  await encSet(LS, entries); await encSet(LSL, prevList);
+  $("lock").hidden = true;
+  if (prevList.length) load(prevList);
+};
+$("lockbtn").onclick = () => location.reload();
 </script>
 </body>
 </html>
