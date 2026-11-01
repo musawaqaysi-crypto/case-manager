@@ -169,7 +169,6 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
     <svg class="i"><use href="#i-up"/></svg>
     <b>افتح ملف قائمة المنوّمين من النظام</b>
     <span>Excel أو CSV · ملف واحد أو عدة ملفات (تُدمج بدون تكرار) · أو اسحبها هنا</span>
-    <button class="btn" id="demo" type="button" style="margin-top:8px">تجربة ببيانات وهمية</button>
   </label>
 
   <section id="app" hidden style="display:flex;flex-direction:column;gap:16px">
@@ -455,12 +454,7 @@ $("report").onclick = () => {
   toast("التقرير فيه أرقام فقط، بدون أسماء");
 };
 
-$("demo").onclick = ev => {
-  ev.preventDefault(); ev.stopPropagation();
-  const W = ["MALE WARD", "FEMALE WARD", "ICU"], C = ["Internal Medicine Specialty", "General Surgery", "GENERAL OB/GYN", "Orthopedic", "Pediatric"];
-  load(Array.from({length: 18}, (_, i) => ({mrn: String(900100 + i), name: `مريض تجريبي ${i + 1}`, ward: W[i % 3], bed: `B-${10 + i}`, doctor: `د. تجريبي ${i % 5 + 1}`, clinic: C[i % 5], days: [3, 5, 9, 12, 15, 24, 31, 8, 4, 19, 26, 45, 6, 11, 2, 22, 14, 7][i]})));
-  toast("بيانات وهمية للتجربة");
-};
+
 
 
 // ---------- daily: expected discharges by department and doctor ----------
