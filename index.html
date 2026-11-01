@@ -156,7 +156,7 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
     <div class="mark"><svg class="i"><use href="#i-bed"/></svg></div>
     <div class="ttl"><h1>متابعة الحالات المتأخرة</h1><p>أداة مدير الحالة للمرضى المنوّمين</p></div>
     <label class="btn primary" for="file"><svg class="i"><use href="#i-up"/></svg>فتح ملف التنويم</label>
-    <input type="file" id="file" accept=".xlsx,.xls,.csv" hidden>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv" multiple hidden>
     <button class="btn" id="export" hidden><svg class="i"><use href="#i-down"/></svg>تصدير Excel كامل</button>
     <button class="btn" id="report" hidden><svg class="i"><use href="#i-chart"/></svg>تقرير للإدارة (أرقام فقط)</button>
   </div>
@@ -168,7 +168,7 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
   <label class="drop" id="drop" for="file">
     <svg class="i"><use href="#i-up"/></svg>
     <b>افتح ملف قائمة المنوّمين من النظام</b>
-    <span>Excel أو CSV · أو اسحبه هنا</span>
+    <span>Excel أو CSV · ملف واحد أو عدة ملفات (تُدمج بدون تكرار) · أو اسحبها هنا</span>
     <button class="btn" id="demo" type="button" style="margin-top:8px">تجربة ببيانات وهمية</button>
   </label>
 
@@ -268,21 +268,26 @@ function load(list){
   fillFilters(); render();
 }
 
-function readFile(f){
-  f.arrayBuffer().then(buf => {
-    const wb = XLSX.read(buf, {type: "array"});
-    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, raw: true, defval: ""});
-    const list = parse(rows);
-    const cmSheet = wb.Sheets["متابعة مدير الحالة"];
-    if (cmSheet) XLSX.utils.sheet_to_json(cmSheet, {defval: ""}).forEach(r => {
-      if (!r["رقم الملف"]) return;
-      const e = entries[String(r["رقم الملف"])] ||= {};
-      try { Object.assign(e, JSON.parse(r["__data"] || "{}")); } catch {}
-    });
+// One file or several (e.g. one per department): merged by file number, so the same patient never appears twice.
+async function readFiles(files){
+  try {
+    const byMrn = new Map(); let dup = 0;
+    for (const f of files) {
+      const wb = XLSX.read(await f.arrayBuffer(), {type: "array"});
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header: 1, raw: true, defval: ""});
+      parse(rows).forEach(p => { if (byMrn.has(p.mrn)) dup++; else byMrn.set(p.mrn, p); });
+      const cmSheet = wb.Sheets["متابعة مدير الحالة"];
+      if (cmSheet) XLSX.utils.sheet_to_json(cmSheet, {defval: ""}).forEach(r => {
+        if (!r["رقم الملف"]) return;
+        const e = entries[String(r["رقم الملف"])] ||= {};
+        try { Object.assign(e, JSON.parse(r["__data"] || "{}")); } catch {}
+      });
+    }
     store.set(LS, entries);
+    const list = [...byMrn.values()];
     load(list);
-    toast(`تم فتح ${list.length} مريض`);
-  }).catch(e => toast(e.message || "ما قدرت أقرأ الملف"));
+    toast(`تم فتح ${list.length} مريض${files.length > 1 ? ` من ${files.length} ملفات` : ""}${dup ? ` (تجاهلت ${dup} تكرار)` : ""}`);
+  } catch (e) { toast(e.message || "ما قدرت أقرأ الملف"); }
 }
 
 const entry = mrn => entries[mrn] || {};
@@ -411,11 +416,11 @@ $("depts").addEventListener("click", ev => { const b = ev.target.closest(".dbtn"
 document.querySelector(".views").addEventListener("click", ev => { const b = ev.target.closest("button[data-view]"); if (!b) return; view = b.dataset.view; render(); });
 
 // ---------- files ----------
-$("file").onchange = e => e.target.files[0] && readFile(e.target.files[0]);
+$("file").onchange = e => e.target.files.length && readFiles([...e.target.files]);
 const drop = $("drop");
 drop.ondragover = e => { e.preventDefault(); drop.classList.add("over"); };
 drop.ondragleave = () => drop.classList.remove("over");
-drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files[0] && readFile(e.dataTransfer.files[0]); };
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove("over"); e.dataTransfer.files.length && readFiles([...e.dataTransfer.files]); };
 
 const J = a => (a || []).join("، ");
 $("export").onclick = () => {
