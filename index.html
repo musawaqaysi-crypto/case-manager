@@ -122,6 +122,40 @@ aside.form{position:fixed;inset-block:0;inset-inline-start:0;width:min(460px,100
 .rate .track i{display:block;height:100%;background:var(--ok)}
 .rate span{font:600 .8rem var(--f-data);min-width:38px}
 .note-s{font-size:.8rem;color:var(--muted);margin:0}
+.m-only{display:none}
+/* phones: header buttons wrap, patient rows become cards, the form takes the whole screen */
+@media (max-width:720px){
+  header .wrap{gap:10px}
+  .ttl{min-width:0;flex-basis:calc(100% - 56px)}
+  header .btn{flex:1;justify-content:center;font-size:.78rem;padding:8px 8px}
+  .tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .tile{padding:10px 12px} .tile .n{font-size:1.45rem}
+  .dbtn{min-width:104px;padding:10px 6px} .dbtn .ic{width:36px;height:36px} .dbtn b{font-size:.74rem}
+  .views{align-self:stretch} .views button{flex:1;justify-content:center;padding:8px 6px;font-size:.8rem}
+  .filters select{flex:1 1 45%}
+  .barrow{grid-template-columns:minmax(90px,130px) 1fr 30px;font-size:.78rem}
+  .tablewrap{background:none;border:0;overflow:visible}
+  .tablewrap table,.tablewrap tbody{display:block}
+  .tablewrap thead{display:none}
+  .tablewrap tbody tr{display:grid;grid-template-columns:1fr auto;gap:4px 10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .tablewrap tbody tr.sel{box-shadow:inset 0 0 0 2px var(--accent)}
+  .tablewrap td{border:0;padding:0;white-space:normal}
+  .c-name{grid-column:1;font-weight:700;font-size:.95rem}
+  .c-los{grid-column:2;grid-row:1;align-self:start}
+  .c-mrn,.c-bed,.c-ward{display:inline;font-size:.78rem;color:var(--muted)}
+  .c-mrn{grid-column:1/-1}
+  .c-ward,.c-bed{display:none}
+  .c-clinic,.c-doc{grid-column:1/-1;font-size:.8rem;color:var(--muted)}
+  .c-edd{grid-column:1;font-size:.8rem}
+  .c-st{grid-column:2;text-align:end}
+  .m-only{display:inline}
+  aside.form{width:100%;border:0}
+  .fb{padding:14px}
+  .chip{padding:7px 12px}
+  .barrow .v{text-align:end}
+  .grp table, .grp tbody{display:block} .grp tr{display:grid;grid-template-columns:1fr auto;gap:2px 8px;padding:8px 12px;border-bottom:1px solid var(--line)}
+  .grp td{border:0;padding:0;font-size:.82rem} .grp thead{display:none}
+}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -346,8 +380,8 @@ function render(){
     const e = entry(p.mrn), st = statusOf(p);
     const pill = {none: `<span class="pill r">بدون إدخال</span>`, adm: `<span class="pill a">${esc((e.reasons || [])[0] || "منوّم")}</span>`, dc: `<span class="pill ok">خرج ${esc(e.dcDate || "")}</span>`, gone: `<span class="pill">غير موجود في آخر ملف</span>`}[st];
     const overdue = e.edd && e.edd < today() && st === "adm";
-    return `<tr data-mrn="${esc(p.mrn)}" class="${current === p.mrn ? "sel" : ""}"><td>${p.name ? esc(p.name) : `<span class="pill">بدون اسم في ملف النظام</span>`}</td><td class="num">${esc(p.mrn)}</td><td>${esc(p.ward)}</td><td class="num">${esc(p.bed)}</td><td>${esc(p.clinic)}</td><td>${esc(p.doctor)}</td>
-      <td><span class="los ${p.days > 21 ? "b" : p.days > 7 ? "w" : ""}">${p.days}</span></td><td class="num" style="${overdue ? "color:var(--bad);font-weight:600" : ""}">${esc(e.edd || "—")}</td><td>${pill}</td></tr>`;
+    return `<tr data-mrn="${esc(p.mrn)}" class="${current === p.mrn ? "sel" : ""}"><td class="c-name">${p.name ? esc(p.name) : `<span class="pill">بدون اسم في ملف النظام</span>`}</td><td class="num c-mrn">${esc(p.mrn)}</td><td class="c-ward">${esc(p.ward)}</td><td class="num c-bed">${esc(p.bed)}</td><td class="c-clinic">${esc(p.clinic)}</td><td class="c-doc">${esc(p.doctor)}</td>
+      <td class="c-los"><span class="los ${p.days > 21 ? "b" : p.days > 7 ? "w" : ""}">${p.days}</span></td><td class="num c-edd" style="${overdue ? "color:var(--bad);font-weight:600" : ""}">${e.edd ? `<span class="m-only">الخروج المتوقع </span>${esc(e.edd)}` : "—"}</td><td class="c-st">${pill}</td></tr>`;
   }).join("") : `<tr><td colspan="9" class="empty">ما فيه نتائج</td></tr>`;
 }
 
