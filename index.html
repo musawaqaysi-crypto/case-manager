@@ -347,7 +347,7 @@ function render(){
     const e = entry(p.mrn), st = statusOf(p);
     const pill = {none: `<span class="pill r">بدون إدخال</span>`, adm: `<span class="pill a">${esc((e.reasons || [])[0] || "منوّم")}</span>`, dc: `<span class="pill ok">خرج ${esc(e.dcDate || "")}</span>`, gone: `<span class="pill">غير موجود في آخر ملف</span>`}[st];
     const overdue = e.edd && e.edd < today() && st === "adm";
-    return `<tr data-mrn="${esc(p.mrn)}" class="${current === p.mrn ? "sel" : ""}"><td>${esc(p.name)}</td><td class="num">${esc(p.mrn)}</td><td>${esc(p.ward)}</td><td class="num">${esc(p.bed)}</td><td>${esc(p.clinic)}</td><td>${esc(p.doctor)}</td>
+    return `<tr data-mrn="${esc(p.mrn)}" class="${current === p.mrn ? "sel" : ""}"><td>${p.name ? esc(p.name) : `<span class="pill">بدون اسم في ملف النظام</span>`}</td><td class="num">${esc(p.mrn)}</td><td>${esc(p.ward)}</td><td class="num">${esc(p.bed)}</td><td>${esc(p.clinic)}</td><td>${esc(p.doctor)}</td>
       <td><span class="los ${p.days > 21 ? "b" : p.days > 7 ? "w" : ""}">${p.days}</span></td><td class="num" style="${overdue ? "color:var(--bad);font-weight:600" : ""}">${esc(e.edd || "—")}</td><td>${pill}</td></tr>`;
   }).join("") : `<tr><td colspan="9" class="empty">ما فيه نتائج</td></tr>`;
 }
@@ -359,7 +359,7 @@ function chipGroup(key, options, multi, red){
 }
 function openForm(mrn){
   current = mrn; const p = patients.find(x => x.mrn === mrn), e = entries[mrn] ||= {};
-  $("p-name").textContent = p.name || "—";
+  $("p-name").textContent = p.name || `بدون اسم في ملف النظام · ${p.mrn}`;
   $("p-meta").textContent = `ملف ${p.mrn} · ${p.ward} ${p.bed} · ${p.clinic} · ${p.days} يوم`;
   const dc = e.status === "dc";
   $("fb").innerHTML = `
